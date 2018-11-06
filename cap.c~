@@ -75,12 +75,6 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
 			printf("\nOccurence of '%s' is: %d",matchStr,occurence); 
 			//write to file and update counter
 			fp = fopen ("output.txt","a");
-			/* write text into the file stream*/
-			fprintf (fp, "payload: %s\n",user_data);
-			fprintf (fp, "appearances: %d\n",occurence);
-			fprintf (fp, "--- --- --- \n");
-		        /* close the file*/  
-			fclose (fp);
 			termination=termination+1;
 		   }
 

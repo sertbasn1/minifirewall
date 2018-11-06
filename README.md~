@@ -1,7 +1,5 @@
 # minifirewall
 
---------------------------------------------
-
 Step 1: On main host that firewall is enabled==
 Compile and run cap.c with root privillages as follows:
 
