@@ -19,13 +19,12 @@ int termination=0;
 FILE * fp;
 
 int subStringSearch(char * Str,char * subStr){
-    	int total=0;
-	while ( (Str=strstr(Str,subStr)) != NULL ){	
-		total++;
-		Str++;
-	 }
-
-	return total;
+    int total=0;
+    while ( (Str=strstr(Str,subStr)) != NULL ){
+        total++;
+        Str++;
+    }
+    return total;
 }
 
 /* returns packet id */
@@ -51,7 +50,6 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     if(ip_info->protocol == IPPROTO_TCP) {
         struct tcphdr * tcp_info = (struct tcphdr*)(data + sizeof(*ip_info));
         unsigned short src_port = ntohs(tcp_info->source);
-        unsigned short dest_port = ntohs(tcp_info->dest);
 
         user_data = (unsigned char *)((unsigned char *)tcp_info + (tcp_info->doff * 4));
         
