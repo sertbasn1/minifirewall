@@ -2,7 +2,8 @@
 
 --------------------------------------------
 
-Step 1: On main host that firewall is enabled==
+Step 1: (On the main host that firewall is enabled)
+
 Compile and run cap.c with root privillages as follows:
 
 How to compile:
@@ -13,7 +14,10 @@ sudo ./cap 192.168.56.102 2000 3 hello
 
 --------------------------------------------
 
-Step 2: On another host start the traffic==
+Step 2: (On any other external host)
+
+Start the traffic with following Scapy code:
+
 sudo python sendPck.py
 
 --------------------------------------------
