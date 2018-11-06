@@ -11,26 +11,26 @@
 #include <arpa/inet.h>
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
-char *match_ip;
-int match_port;
-int match_count;
-char *match_string;
-int termination = 0;
-FILE *fp;
+char * matchip;
+int matchPort;
+int matchCount;
+char * matchStr;
+int termination=0;
+FILE * fp;
 
-int substringSearch(char *string, char *substring) {
-    int total = 0;
+int subStringSearch(char * Str,char * subStr){
+    	int total=0;
+	while ( (Str=strstr(Str,subStr)) != NULL ){	
+		total++;
+		Str++;
+	 }
 
-    while ((string = strstr(string, substring)) != NULL) {
-        total++;
-        string++;
-    }
-
-    return total;
+	return total;
 }
 
-// returns packet id 
-static u_int32_t examine_pkt(struct nfq_data *tb) {
+/* returns packet id */
+static u_int32_t examine_pkt (struct nfq_data *tb)
+{
     int id = 0;
     int occurence=0;
     struct nfqnl_msg_packet_hdr *ph;
@@ -38,149 +38,133 @@ static u_int32_t examine_pkt(struct nfq_data *tb) {
     char *data;
     unsigned char *user_data;
 
-    ph = nfq_get_msg_packet_hdr(tb);
+	ph = nfq_get_msg_packet_hdr(tb);
+	if (ph) {
+		id = ntohl(ph->packet_id);
+	}
 
-    if (ph) {
-        id = ntohl(ph->packet_id);
-    }
+    ret = nfq_get_payload(tb, (unsigned char**)&data);
+    if (ret >= 0){//payload_len is not eq 0
 
-    ret = nfq_get_payload(tb, (unsigned char**) &data);
-    
-    if (ret >= 0) { // payload_len is not eq 0
-        // parssing the packet fields
-        struct iphdr * ip_info = (struct iphdr *)data;
-            
-        if (ip_info->protocol == IPPROTO_TCP) {
-            struct tcphdr * tcp_info = (struct tcphdr*)(data + sizeof(*ip_info));
-            unsigned short src_port = ntohs(tcp_info->source);
-            unsigned short dest_port = ntohs(tcp_info->dest);
+    //parssing the packet fields
+    struct iphdr * ip_info = (struct iphdr *)data;
+    if(ip_info->protocol == IPPROTO_TCP) {
+        struct tcphdr * tcp_info = (struct tcphdr*)(data + sizeof(*ip_info));
+        unsigned short src_port = ntohs(tcp_info->source);
+        unsigned short dest_port = ntohs(tcp_info->dest);
 
-            user_data = (unsigned char *)((unsigned char *)tcp_info + (tcp_info->doff * 4));
-		    
-		// checking source port and source ip adresses
-		if ((ip_info->saddr == inet_addr(match_ip)) && (src_port == match_port)) {
-            printf("Packet with srcIP %s and srcPort %d is captured\n", match_ip, match_port);
-            occurence = substringSearch(user_data, match_string);
-            
-            if (occurence == 0) { // match_string is not found in the payload
+        user_data = (unsigned char *)((unsigned char *)tcp_info + (tcp_info->doff * 4));
+        
+		//checking source port and source ip adresses
+		if((ip_info->saddr == inet_addr(matchip)) && (src_port==matchPort)){
+            printf("Packet with srcIP %s and srcPort %d is captured\n",matchip, matchPort);
+            occurence=subStringSearch(user_data,matchStr);
+            if (occurence== 0){ //matchStr is not found in the payload
                 printf("No match with the payload\n");
-            } else {
-                printf("Packet %d satisfying criteria\n", termination + 1);
-                printf("Payload is: ");
-                
-                int c = 0;
-                
-                while (user_data[c] != '\0') {
-                    printf("%c", user_data[c]);
-                    c = c + 1;
-                }
-                
-                printf("\nOccurence of '%s' is: %d", match_string, occurence);
-                
-                // write to file and update counter
-                fp = fopen ("output.txt","a");
-                
-                // write text into the file stream
-                fprintf (fp, "payload: %s\n",user_data);
-                fprintf (fp, "appearances: %d\n",occurence);
-                fprintf (fp, "--- --- --- \n");
-                
-                // close the file
-                fclose (fp);
-                termination = termination + 1;
 		   }
-        } else if (ip_info->protocol == IPPROTO_UDP) {
-		    // etc
+		   else{
+               printf("Packet %d satisfying criteria\n", termination+1);
+               printf("Payload is: ");
+               int c = 0;
+               while (user_data[c]!= '\0') {
+                   printf("%c", user_data[c]);
+                   c=c+1;
+               }
+			
+               printf("\nOccurence of '%s' is: %d",matchStr,occurence);
+               //write to file and update counter
+               fp = fopen ("output.txt","a");
+               /* write text into the file stream*/
+               fprintf (fp, "payload: %s\n",user_data);
+               fprintf (fp, "appearances: %d\n",occurence);
+               fprintf (fp, "--- --- --- \n");
+               /* close the file*/
+               fclose (fp);
+               termination=termination+1;
+		   }
+        }
+		}else if(ip_info->protocol == IPPROTO_UDP) {
+		    //etc
 		}
+
 	}
 
     fputc('\n', stdout);
-
     return id;
 }
+      
+
+static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data){
     
-static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data) {
     u_int32_t id = examine_pkt(nfa);
-    
     return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 
-int main( int argc, char *argv[]) {
-    struct nfq_handle *h;
-    struct nfq_q_handle *qh;
 
-    int fd;
-    int rv;
-    char buf[4096] __attribute__ ((aligned));
+int main( int argc, char *argv[] )  {    
 
-    if (argc == 5) {
-        match_ip = argv[1];
-        match_port = atoi(argv[2]);
-        match_count = atoi(argv[3]);
-        match_string = argv[4];
-    } else {
-        printf("Missing Argument! Provide following tuple (ip,port,counter,string)\n");
-        
-        return EXIT_FAILURE;
-    }
+      struct nfq_handle *h;
+      struct nfq_q_handle *qh;
+
+      int fd;
+      int rv;
+      char buf[4096] __attribute__ ((aligned));
+
+      if( argc == 5 ) {
+          matchip=argv[1];
+          matchPort=atoi(argv[2]);
+          matchCount=atoi(argv[3]);
+          matchStr=argv[4];
+      }
+      else {
+          printf("Missing Argument! Provide following tuple (ip,port,counter,string)\n");
+          return EXIT_FAILURE;
+      }
 
     int status = system("sudo iptables -A INPUT -i eth1 -j NFQUEUE --queue-num 0");
-    
-    if (status != 0) {
+    if( status != 0 ) {
         printf("Error occured creating flow rules via iptables!\n");
-        
         return EXIT_FAILURE;
-    }
+      }
 
     printf("opening library handle\n");
     h = nfq_open();
-    
     if (!h) {
         fprintf(stderr, "error during nfq_open()\n");
-        
         exit(1);
-    }
+      }
 
     printf("unbinding existing nf_queue handler for AF_INET (if any)\n");
-    
     if (nfq_unbind_pf(h, AF_INET) < 0) {
         fprintf(stderr, "error during nfq_unbind_pf()\n");
-        
         exit(1);
-    }
+      }
 
     printf("binding nfnetlink_queue as nf_queue handler for AF_INET\n");
-
     if (nfq_bind_pf(h, AF_INET) < 0) {
         fprintf(stderr, "error during nfq_bind_pf()\n");
-
         exit(1);
     }
 
     printf("binding this socket to queue '0'\n");
-    qh = nfq_create_queue(h, 0, &cb, NULL);
-    
+    qh = nfq_create_queue(h,  0, &cb, NULL);
     if (!qh) {
         fprintf(stderr, "error during nfq_create_queue()\n");
-        
         exit(1);
-    }
+      }
 
     printf("setting copy_packet mode\n");
-    
     if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
         fprintf(stderr, "can't set packet_copy mode\n");
-        
         exit(1);
     }
 
     fd = nfq_fd(h);
 
-    while (termination < match_count && (rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
+    while (termination<matchCount && (rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
         printf("--- --- --- \n");
         printf("pkt received\n");
         printf("--- --- --- \n");
-        
         nfq_handle_packet(h, buf, rv);
     }
 
@@ -188,20 +172,20 @@ int main( int argc, char *argv[]) {
     nfq_destroy_queue(qh);
 
     status = system("sudo iptables --flush");
-    
-    if (status == 0) {
+    if( status == 0 ) {
         printf("Flow rule is removed..\n");
     }
 
-    /* normally, applications SHOULD NOT issue this command, since
-     * it detaches other programs/sockets from AF_INET, too! */
-    #ifdef INSANE
-        printf("unbinding from AF_INET\n");
-        nfq_unbind_pf(h, AF_INET);
-    #endif
+#ifdef INSANE
+      /* normally, applications SHOULD NOT issue this command, since
+       * it detaches other programs/sockets from AF_INET, too ! */
+      printf("unbinding from AF_INET\n");
+      nfq_unbind_pf(h, AF_INET);
+#endif
 
-    printf("closing library handle\n");
-    nfq_close(h);
+      printf("closing library handle\n");
+      nfq_close(h);
 
-    exit(0);
+      exit(0);
 }
+
