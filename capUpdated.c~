@@ -136,7 +136,7 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
                 int c = 0;
 
                 while (c!= payload_size) {
-                    if (uuser_data[c] > 31 && uuser_data[c] < 127)
+                    if (tuser_data[c] > 31 && tuser_data[c] < 127)
                         {printf("%c", uuser_data[c]);
                         fprintf(fp,"%c",uuser_data[c]); }
                     else
