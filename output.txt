@@ -1,9 +1,18 @@
-payload: hello bla bla hello
+payload: hello bla bla hello bla
 appearances: 2
 --- --- --- 
-payload: blah blah blahhello
-appearances: 1
+payload: hello bla bla hello bla
+appearances: 2
 --- --- --- 
-payload: hello bla bla hello
+payload: hello bla bla hello bla
+appearances: 2
+--- --- --- 
+payload: hello bla bla hello blal
+appearances: 2
+--- --- --- 
+payload: hello bla bla hello blal
+appearances: 2
+--- --- --- 
+payload: hello bla bla hello blal
 appearances: 2
 --- --- --- 
