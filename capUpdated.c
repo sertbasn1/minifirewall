@@ -87,15 +87,13 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     else if(ip_info->protocol == IPPROTO_UDP){
         struct udphdr * udp_info = (struct udphdr*)(data + sizeof(*ip_info));
         src_port = ntohs(udp_info->source);
-        struct pkt_buff * pktb;
-#user_data = (unsigned char *)((unsigned char *)udp_info + (udp_info->doff * 4));
+        user_data = (unsigned char *)((unsigned char *)udp_info +  sizeof(struct udphdr);
         
-        nfq_udp_get_payload(udph,struct pkt_buff * pktb);
         
         //checking source port and source ip adresses
         if((ip_info->saddr == inet_addr(matchip)) && (src_port==matchPort)){
             printf("Packet with srcIP %s and srcPort %d is captured\n",matchip, matchPort);
-            occurence=subStringSearch(pktb,matchStr);
+            occurence=subStringSearch(user_data,matchStr);
             if (occurence== 0){ //matchStr is not found in the payload
                 printf("No match with the payload\n");
             }
@@ -103,8 +101,8 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
                 printf("Packet %d satisfying criteria\n", termination+1);
                 printf("Payload is: ");
                 int c = 0;
-                while (pktb[c]!= '\0') {
-                    printf("%c", pktb[c]);
+                while (user_data[c]!= '\0') {
+                    printf("%c", user_data[c]);
                     c=c+1;
                 }
                 
@@ -112,7 +110,7 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
                 //write to file and update counter
                 fp = fopen ("output.txt","a");
                 /* write text into the file stream*/
-                fprintf (fp, "payload: %s\n",pktb);
+                fprintf (fp, "payload: %s\n",user_data);
                 fprintf (fp, "appearances: %d\n",occurence);
                 fprintf (fp, "--- --- --- \n");
                 /* close the file*/
