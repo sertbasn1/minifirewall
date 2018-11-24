@@ -98,9 +98,14 @@ fprintf (fp, "payload:");
 
               		
                printf("\nOccurence of '%s' is: %d\n",matchStr,occurence);
-fprintf (fp, "\nappearances: %d\n",occurence);
-               fprintf (fp, "--- --- --- \n");
 
+               //write to file and update counter
+               fp = fopen ("output.txt","a");
+               /* write text into the file stream*/
+               fprintf (fp, "payload: %s\n",tuser_data);
+               fprintf (fp, "\nappearances: %d\n",occurence);
+               fprintf (fp, "--- --- --- \n");
+	       //memset(tuser_data,0, sizeof(tuser_data));
                /* close the file*/
                fclose (fp);
                termination=termination+1;
