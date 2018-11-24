@@ -23,14 +23,13 @@ int payload_size;
 
 
 int subStringSearch(char * Str,char * subStr){
-	printf(" %s and %s is compared \n",Str, subStr);
-	int total=0;
+    //printf(" %s and %s is compared \n",Str, subStr);
+    int total=0;
     while ( (Str=strstr(Str,subStr)) != NULL ){
         total++;
         Str++;
     }
-	printf("result is %d \n",total);
-	return total;
+    return total;
 }
 
 
@@ -45,126 +44,122 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     char *tuser_data,*uuser_data;
     unsigned short src_port;
 
-
 	ph = nfq_get_msg_packet_hdr(tb);
 	if (ph) {
-		id = ntohl(ph->packet_id);
-	}
+        id = ntohl(ph->packet_id);
+    }
 
     ret = nfq_get_payload(tb, (unsigned char**)&data);
     if (ret >= 0){//payload_len is not eq 0
 
     //parssing the packet fields
     struct iphdr * ip_info = (struct iphdr *)data;
+  
+    //TCP Part
     if(ip_info->protocol == IPPROTO_TCP) {
-      	struct tcphdr * tcp_info = (struct tcphdr *)(data + sizeof(*ip_info));
-	src_port = ntohs(tcp_info->source);
-	int tcph_len = tcp_info->doff*4;
-	tuser_data = (char *)tcp_info + tcph_len;
-	payload_size = ntohs(ip_info->tot_len)-sizeof(*ip_info)-tcph_len;			
-		
-
-	//checking source port and source ip adresses
-	if((ip_info->saddr == inet_addr(matchip)) && (src_port==matchPort)){
+        struct tcphdr * tcp_info = (struct tcphdr *)(data + sizeof(*ip_info));
+        src_port = ntohs(tcp_info->source);
+        //TCP header size
+        int tcph_len = tcp_info->doff*4;
+        //get tcp payload
+        tuser_data = (char *)tcp_info + tcph_len;
+        payload_size = ntohs(ip_info->tot_len)-sizeof(*ip_info)-tcph_len;
+        
+        //checking source port and source ip adresses
+        if((ip_info->saddr == inet_addr(matchip)) && (src_port==matchPort)){
             printf("Packet with srcIP %s and srcPort %d is captured\n",matchip, matchPort);
-
-	 char pstring[payload_size];
-	 strncpy(pstring,tuser_data, payload_size);
- 	 occurence=subStringSearch(pstring,matchStr);
-            if (occurence== 0){ //matchStr is not found in the payload
+            char pstring[payload_size];
+            strncpy(pstring,tuser_data, payload_size);
+            occurence=subStringSearch(pstring,matchStr);
+            
+            if (occurence== 0) //matchStr is not found in the payload
                 printf("No match with the payload\n");
-		   }
-		   else{
-               printf("TCP Packet %d satisfying criteria\n", termination+1);
-               //write to file and update counter
+            else{
+                printf("TCP Packet %d satisfying criteria\n", termination+1);
+                //write to file and update counter
                 fp = fopen ("output.txt","a");
                 /* write text into the file stream*/
-fprintf (fp, "payload:");
+                fprintf (fp, "payload:");
+                printf("Payload is: ");
+                int c = 0;
                 
-		printf("Payload is: ");
-
- 		int c = 0;
-                
-		while (c!= payload_size) {
-         		if ((tuser_data[c] >= 32 && tuser_data[c] <= 126) || tuser_data[c] == 10 || tuser_data[c] == 11 || tuser_data[c] == 13) 
-				{printf("%c", tuser_data[c]);
-				fprintf(fp,"%c",tuser_data[c]); }
-			else  
-				{printf("%s","." );
-				fprintf(fp,"%s","."); }
+                while (c!= payload_size) {
+                    if (tuser_data[c] > 31 && tuser_data[c] < 127)
+                        {printf("%c", tuser_data[c]);
+                         fprintf(fp,"%c",tuser_data[c]); }
+                    else
+                        {printf("%s","." );
+                        fprintf(fp,"%s","."); }
                     c=c+1;
                 }
+                
+                    printf("\nOccurence of '%s' is: %d\n",matchStr,occurence);
+                    fprintf (fp, "\nappearances: %d\n",occurence);
+                    fprintf (fp, "--- --- --- \n");
 
-
-              		
-               printf("\nOccurence of '%s' is: %d\n",matchStr,occurence);
-fprintf (fp, "\nappearances: %d\n",occurence);
-               fprintf (fp, "--- --- --- \n");
-
-               /* close the file*/
-               fclose (fp);
-               termination=termination+1;
-		   }
+                    /* close the file*/
+                    fclose (fp);
+                    termination=termination+1;
+               }
+            }
         }
-    }
+    
+    //UDP Part
     else if(ip_info->protocol == IPPROTO_UDP){
         struct udphdr * udp_info = (struct udphdr*)(data + sizeof(*ip_info));
         src_port = ntohs(udp_info->source);
 
-	 /*UDP header size*/
-	 int udph_len = sizeof(struct udphdr);
-	 /*get udp payload*/			
-	 uuser_data = (char *) udp_info + udph_len;
-	 payload_size = ntohs(udp_info->len) - udph_len;
+         //UDP header size
+         int udph_len = sizeof(struct udphdr);
+         //get udp payload
+         uuser_data = (char *) udp_info + udph_len;
+         payload_size = ntohs(udp_info->len) - udph_len;
     
         //checking source port and source ip adresses
         if((ip_info->saddr == inet_addr(matchip)) && (src_port==matchPort)){
             printf("Packet with srcIP %s and srcPort %d is captured\n",matchip, matchPort);
 
-	 char pstring[payload_size];
-	 strncpy(pstring,uuser_data, payload_size);
- 	 occurence=subStringSearch(pstring,matchStr);
+            char pstring[payload_size];
+            strncpy(pstring,uuser_data, payload_size);
+            occurence=subStringSearch(pstring,matchStr);
 
             if (occurence==0){ //matchStr is not found in the payload
                 printf("No match with the payload\n");
             }
             else{
                 printf("UDP Packet %d satisfying criteria\n", termination+1);
-                        //write to file and update counter
+                //write to file and update counter
                 fp = fopen ("output.txt","a");
                 /* write text into the file stream*/
-fprintf (fp, "payload:");
-                
-		printf("Payload is: ");
+                fprintf (fp, "payload:");
+                printf("Payload is: ");
                 int c = 0;
 
-		while (c!= payload_size) {
-         		if ((uuser_data[c] >= 32 && uuser_data[c] <= 126) || uuser_data[c] == 10 || uuser_data[c] == 11 || uuser_data[c] == 13) 
-				{printf("%c", uuser_data[c]);
-				fprintf(fp,"%c",uuser_data[c]); }
-			else  
-				{printf("%s","." );
-				fprintf(fp,"%s","."); }
+                while (c!= payload_size) {
+                    if (tuser_data[c] > 31 && tuser_data[c] < 127)
+                        {printf("%c", uuser_data[c]);
+                        fprintf(fp,"%c",uuser_data[c]); }
+                    else
+                        {printf("%s","." );
+                        fprintf(fp,"%s","."); }
                     c=c+1;
                 }
                 
                 printf("\nOccurence of '%s' is: %d",matchStr,occurence);
                 fprintf (fp, "\nappearances: %d\n",occurence);
                 fprintf (fp, "--- --- --- \n");
-		//memset(uuser_data,0, sizeof(uuser_data));
+                
                 /* close the file*/
                 fclose (fp);
                 termination=termination+1;
             }
         }
     }
-
-	}
-
+  }
     fputc('\n', stdout);
     return id;
 }
-      
+
 
 static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data){
     
@@ -234,7 +229,7 @@ int main( int argc, char *argv[] )  {
     fd = nfq_fd(h);
 
     while (termination<matchCount && (rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
-        printf("--- --- --- \n");
+        printf("--- --- --- ");
         printf("pkt received\n");
         nfq_handle_packet(h, buf, rv);
     }
