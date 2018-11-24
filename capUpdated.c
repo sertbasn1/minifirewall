@@ -5,6 +5,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/ip.h>
+#include <internal.h>
 #include <netinet/in.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -38,6 +39,7 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     char *data;
     unsigned char *user_data;
     unsigned short src_port;
+    struct pkt_buff *     pktb;
 
 	ph = nfq_get_msg_packet_hdr(tb);
 	if (ph) {
@@ -87,7 +89,12 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     else if(ip_info->protocol == IPPROTO_UDP){
         struct udphdr * udp_info = (struct udphdr*)(data + sizeof(*ip_info));
         src_port = ntohs(udp_info->source);
-        user_data = (unsigned char *)((unsigned char *)udp_info +  sizeof(struct udphdr);
+        
+        unsigned int ulen=nfq_udp_get_payload_len(udp_info,pktb);
+        nfq_udp_get_payload(udp_info,pktb);
+        memcpy(user_data,pktb->data,ulen);
+        
+        //user_data = (unsigned char *)((unsigned char *)udp_info +  sizeof(struct udphdr);
         
         
         //checking source port and source ip adresses
@@ -101,6 +108,7 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
                 printf("Packet %d satisfying criteria\n", termination+1);
                 printf("Payload is: ");
                 int c = 0;
+                
                 while (user_data[c]!= '\0') {
                     printf("%c", user_data[c]);
                     c=c+1;
