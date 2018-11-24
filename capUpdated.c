@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/tcp.h>
+#include <linux/udp.h>
 #include <linux/ip.h>
 #include <netinet/in.h>
 #include <linux/types.h>
@@ -36,6 +37,7 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     int ret;
     char *data;
     unsigned char *user_data;
+    unsigned short src_port;
 
 	ph = nfq_get_msg_packet_hdr(tb);
 	if (ph) {
@@ -49,7 +51,7 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
     struct iphdr * ip_info = (struct iphdr *)data;
     if(ip_info->protocol == IPPROTO_TCP) {
         struct tcphdr * tcp_info = (struct tcphdr*)(data + sizeof(*ip_info));
-        unsigned short src_port = ntohs(tcp_info->source);
+        src_port = ntohs(tcp_info->source);
 
         user_data = (unsigned char *)((unsigned char *)tcp_info + (tcp_info->doff * 4));
         
@@ -81,9 +83,41 @@ static u_int32_t examine_pkt (struct nfq_data *tb)
                termination=termination+1;
 		   }
         }
-		}else if(ip_info->protocol == IPPROTO_UDP) {
-		    //etc
-		}
+    }
+    else if(ip_info->protocol == IPPROTO_UDP){
+        struct udphdr * udp_info = (struct udphdr*)(data + sizeof(*ip_info));
+        src_port = ntohs(udp_info->source);
+        user_data = (unsigned char *)((unsigned char *)udp_info + (udp_info->doff * 4));
+        
+        //checking source port and source ip adresses
+        if((ip_info->saddr == inet_addr(matchip)) && (src_port==matchPort)){
+            printf("Packet with srcIP %s and srcPort %d is captured\n",matchip, matchPort);
+            occurence=subStringSearch(user_data,matchStr);
+            if (occurence== 0){ //matchStr is not found in the payload
+                printf("No match with the payload\n");
+            }
+            else{
+                printf("Packet %d satisfying criteria\n", termination+1);
+                printf("Payload is: ");
+                int c = 0;
+                while (user_data[c]!= '\0') {
+                    printf("%c", user_data[c]);
+                    c=c+1;
+                }
+                
+                printf("\nOccurence of '%s' is: %d",matchStr,occurence);
+                //write to file and update counter
+                fp = fopen ("output.txt","a");
+                /* write text into the file stream*/
+                fprintf (fp, "payload: %s\n",user_data);
+                fprintf (fp, "appearances: %d\n",occurence);
+                fprintf (fp, "--- --- --- \n");
+                /* close the file*/
+                fclose (fp);
+                termination=termination+1;
+            }
+        }
+    }
 
 	}
 
